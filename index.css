@@ -1,0 +1,42 @@
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    text-align: center;
+    position: absolute;
+    color: white;
+
+    background-image: url('background.jpg');
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+}
+
+.container {
+    height: fit-content;
+    width: fit-content;
+    padding: 50px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: 0;
+    margin: auto;
+    position: absolute;
+}
+
+.container > .roulette {
+    width: 500px;
+    height: 500px;
+}
+
+.container > .arrow {
+    height: 70px;
+    position: absolute;
+    top: 10px;
+    left: 0;
+    right: 0;
+    margin: auto;
+}
