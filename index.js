@@ -41,7 +41,7 @@ function startSpin(obj, angle) {
     const startMaxTurnAngle = 360 * 2;
     const endTurnAngle = 360 * 5;
 
-    const bezier = [0, 0, 0, 0];
+    const bezier = [0, 0, 1, 1];
     const speed = 360 * 3; // Deg per sec
 
     for (let i = 0; i < 1; i += 0.1) {
@@ -78,7 +78,7 @@ function startSpin(obj, angle) {
         angle += endTurnAngle - obj.angle;
         const startSpeed = (cubicBezier(0.01, bezier[0], bezier[1], bezier[2], bezier[3]) - cubicBezier(0, bezier[0], bezier[1], bezier[2], bezier[3])) / 0.01;
 
-        stopDuration = angle / speed * (1-startSpeed) * 1000;
+        stopDuration = angle * startSpeed / speed * 1000;
         startTime = window.performance.now();
         requestAnimationFrame(stop);
     }
@@ -221,16 +221,16 @@ function bezier(t, p0, p1, p2, p3) {
 }
 
 function cubicBezier(t, x1, y1, x2, y2) {
-    const cX = 3 * (x1),
-        bX = 3 * (x2 - x1) - cX,
-        aX = 1 - cX - bX;
+    // P = Math.pow(1 - t, 3) * P1 +
+    //     3 * Math.pow(1 - t, 2) * t * P2 +
+    //     3 * (1 - t) * Math.pow(t, 2) * P3 +
+    //     Math.pow(t, 3) * P4;
 
-    const cY = 3 * (y1),
-        bY = 3 * (y2 - y1) - cY,
-        aY = 1 - cY - bY;
-
-    // const x = (aX * Math.pow(t, 3)) + (bX * Math.pow(t, 2)) + (cX * t);
-    return (aY * Math.pow(t, 3)) + (bY * Math.pow(t, 2)) + (cY * t);
+    const p1y = 0, p4y = 1;
+    return  Math.pow(1 - t, 3) * p1y +
+        3 * Math.pow(1 - t, 2) * t * y1 +
+        3 * (1 - t) * Math.pow(t, 2) * y2 +
+        Math.pow(t, 3) * p4y;
 }
 
 // function bezier(t, p1, p2) {
