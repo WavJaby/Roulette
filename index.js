@@ -1,6 +1,12 @@
 window.addEventListener('load', function () {
+    // Bonus pool value
+    const bonusPoolText = document.createElement('h1');
+    bonusPoolText.className = 'bonusPoolText';
+    document.body.appendChild(bonusPoolText);
+
+    // Container for roulette
     const container = document.createElement('div');
-    container.classList.add('container');
+    container.className = 'container';
     document.body.appendChild(container);
 
     const options = [
@@ -13,43 +19,52 @@ window.addEventListener('load', function () {
 
     const arrow = document.createElement('img');
     arrow.src = './arrow.svg';
-    arrow.classList.add('arrow');
+    arrow.className = 'arrow';
     container.appendChild(arrow);
 
-    const standard = gaussian(0, 10);
-    let a = 0;
-    for (let i = 0; i < 1000000000; i++) {
-        const j = standard();
-        if (j > a)
-            a = j;
-    }
-    console.log(a)
-
-    // 獎金池
+    // Init
+    const standard = gaussian(0, 1, 1);
     let spinning = false;
+    let stopNowFunction = null;
     let entranceFee = 10000;
     let bonusPoolValue = 0;
-    const bonusPool = document.createElement('h1');
     updateBonusText();
-    document.body.appendChild(bonusPool);
 
     window.addEventListener('keyup', function (ev) {
         if (ev.key === ' ') {
-            if (spinning)
+            if (spinning) {
+                // Stop wheel now
+                if (stopNowFunction)
+                    stopNowFunction();
                 return;
+            }
             spinning = true;
             bonusPoolValue += entranceFee;
             updateBonusText();
             console.log('start');
 
-            startSpin(roulette, -90 - (140 + Math.random() * 220), function () {
+            // Get random angle
+            let random = standard();
+            if (random < 0.5)
+                random = 0.5 - random;
+            else
+                random = 1 - random + 0.5;
+            random = Math.max(0.005, Math.min(random, 0.995));
+
+            // Get random section
+            const option = options[Math.random() * options.length | 0];
+
+            stopNowFunction = startSpin(roulette.firstElementChild, 270 - (option.startAngle + random * option.angle), function () {
                 spinning = false;
             });
         }
     });
 
     function updateBonusText() {
-        bonusPool.innerText = '獎金池 : ' + format(bonusPoolValue) + ' 元';
+        if (bonusPoolValue === 0)
+            bonusPoolText.innerHTML = '獎金池 : 0 元';
+        else
+            bonusPoolText.innerHTML = '獎金池 : <span>' + format(bonusPoolValue) + '</span> 元';
     }
 });
 
@@ -57,16 +72,14 @@ function startSpin(obj, angle, onStop) {
     if (!obj.angle)
         obj.angle = 0;
 
+    let stopNow = false;
     const startMaxTurnAngle = 360 * 5;
-    const endTurnAngle = 360 * 4;
-
-    // const bezier = [0, 0, 1, 1];
+    const endTurnAngle = 360 * 3;
     const speed = 360 * 3; // Deg per sec
 
+    // Start spin
     const startTurnAngle = startMaxTurnAngle - obj.angle;
     const startDuration = startTurnAngle / speed * 1000;
-
-    // Start spin
     let startTime = window.performance.now();
     let startAngle = obj.angle;
     requestAnimationFrame(start);
@@ -80,21 +93,19 @@ function startSpin(obj, angle, onStop) {
         obj.angle = nowAngle;
         obj.style.rotate = nowAngle + 'deg';
 
-        if (time < startDuration)
+        if (time < startDuration && !stopNow)
             requestAnimationFrame(start);
         else
             stopSpin();
     }
 
     const stopSpeed = speed;
-    let stopTotalAngle;
-    let stopDuration;
+    let stopTurnAngle;
 
     function stopSpin() {
         startAngle = obj.angle;
-        stopTotalAngle = angle += endTurnAngle - obj.angle;
+        stopTurnAngle = angle += endTurnAngle - obj.angle;
         // const startSpeed = (cubicBezier(0.01, bezier[0], bezier[1], bezier[2], bezier[3]) - cubicBezier(0, bezier[0], bezier[1], bezier[2], bezier[3])) / 0.01;
-
         // stopDuration = angle * startSpeed / speed * 1000;
         startTime = window.performance.now();
         requestAnimationFrame(stop);
@@ -102,10 +113,8 @@ function startSpin(obj, angle, onStop) {
 
     function stop() {
         const time = (window.performance.now() - startTime);
-        const m = Math.min(1, (angle + 5) / stopTotalAngle);
+        const m = Math.min(1, (angle + 2) / stopTurnAngle * 2);
         let angleChange = stopSpeed * m / 1000 * time;
-
-        console.log(angleChange)
 
         if (angleChange > angle)
             angleChange = angle;
@@ -122,30 +131,39 @@ function startSpin(obj, angle, onStop) {
 
         startTime = window.performance.now();
     }
+
+    // Stop now
+    return function () {
+        stopNow = true;
+    }
 }
 
 function createRoulette(options) {
+    const r = 100;
+    const x = 100;
+    const y = 100;
+
     const roulette = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     roulette.setAttribute('width', '200');
     roulette.setAttribute('height', '200');
     roulette.setAttribute('viewBox', '0 0 200 200');
     roulette.classList.add('roulette');
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('transform-origin', x + ' ' + y);
 
-    const r = 100;
-    const x = 100;
-    const y = 100;
     // Option
     for (const option of options) {
-        roulette.appendChild(createPie(x, y, r, option.startAngle, option.angle, option.bgColor));
-        roulette.appendChild(createSvgTextWithAngle(x, y, r * 0.9, option.startAngle + option.angle / 2, option.text, 15, '#FFFFFF'));
+        group.appendChild(createPie(x, y, r, option.startAngle, option.angle, option.bgColor));
+        group.appendChild(createSvgTextWithAngle(x, y, r * 0.9, option.startAngle + option.angle / 2, option.text, 15, '#FFFFFF'));
     }
     // Split line
     for (const option of options) {
-        roulette.appendChild(createSvgLineWithAngle(x, y, option.startAngle, r, 1, '#FFFFFF'));
+        group.appendChild(createSvgLineWithAngle(x, y, option.startAngle, r, 1, '#FFFFFF'));
     }
     // Center
-    roulette.appendChild(createSvgCircle(x, y, 2, {fill: 'white'}));
+    group.appendChild(createSvgCircle(x, y, 2, {fill: 'white'}));
 
+    roulette.appendChild(group);
     return roulette;
 }
 
@@ -265,30 +283,19 @@ function cubicBezier(t, x1, y1, x2, y2) {
 }
 
 // returns a gaussian random function with the given mean and stdev.
-function gaussian(mean, stdev) {
-    let y2;
-    let use_last = false;
+function gaussian(min, max, skew) {
     return function () {
-        let y1;
-        if (use_last) {
-            y1 = y2;
-            use_last = false;
-        } else {
-            let x1, x2, w;
-            do {
-                x1 = 2.0 * Math.random() - 1.0;
-                x2 = 2.0 * Math.random() - 1.0;
-                w = x1 * x1 + x2 * x2;
-            } while (w >= 1.0);
-            w = Math.sqrt((-2.0 * Math.log(w)) / w);
-            y1 = x1 * w;
-            y2 = x2 * w;
-            use_last = true;
-        }
+        let num;
+        do {
+            let u = 0, v = 0;
+            while (u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+            while (v === 0) v = Math.random();
+            num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+            num = num / 10.0 + 0.5; // Translate to 0 -> 1
+            if (num > 1 || num < 0)
+                console.log(num);
+        } while (num > 1 || num < 0);
 
-        const retVal = mean + stdev * y1;
-        if (retVal > 0)
-            return retVal;
-        return -retVal;
+        return Math.pow(num, skew) * (max - min) + min;
     }
 }

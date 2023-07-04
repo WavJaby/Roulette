@@ -16,26 +16,28 @@ body {
     background-size: cover;
 }
 
-h1 {
+.bonusPoolText {
     font-size: 60px;
+    margin: 0;
     text-shadow: 0 0 6px black;
 }
 
+.bonusPoolText > span {
+    color: #f4e62f;
+    font-size: 100px;
+}
+
 .container {
-    height: fit-content;
-    width: fit-content;
     padding: 50px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    top: 0;
-    margin: auto;
-    position: absolute;
+    display: inline-block;
+    position: relative;
+    overflow: hidden;
 }
 
 .container > .roulette {
-    width: 500px;
-    height: 500px;
+    width: 700px;
+    height: 700px;
+    filter: drop-shadow(5px 5px 5px rgb(0 0 0 / 0.5));
 }
 
 .container > .arrow {
