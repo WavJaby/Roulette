@@ -1,4 +1,6 @@
 window.addEventListener('load', function () {
+    let entranceFee = 10000;
+
     // Bonus pool value
     const bonusPoolText = document.createElement('h1');
     bonusPoolText.className = 'bonusPoolText';
@@ -9,11 +11,37 @@ window.addEventListener('load', function () {
     container.className = 'container';
     document.body.appendChild(container);
 
+    const resultScr = resultScreen();
+    let resultShow = false;
+    document.body.appendChild(resultScr);
+
+    const state = document.createElement('div');
+    state.className = 'state';
+    document.body.appendChild(state);
+
     const options = [
-        {startAngle: 0, angle: 20, bgColor: '#F6F740', text: '大獎'},
-        {startAngle: 20, angle: 120, bgColor: '#f038ff', text: '小獎'},
-        {startAngle: 140, angle: 220, bgColor: '#3772ff', text: '沒中'},
+        // {startAngle: 140, angle: 220, bgColor: '#3772ff', text: '沒中', onStop: () => resultScr.show('🎉恭喜沒中哈哈🎉')},
+        // {startAngle: 20, angle: 120, bgColor: '#f038ff', text: '小獎', onStop: onSmall},
+        // {startAngle: 0, angle: 20, bgColor: '#F6F740', text: '大獎', onStop: onBig},
     ];
+    const rewards = [];
+    rewards[0] = [];
+    for (let i = 0; i < 10; i++)
+        rewards[0].push({startAngle: i * 36 + 10, angle: 26, bgColor: '#3772ff', text: '沒中', onStop: onNone});
+    options.push(...rewards[0]);
+
+    rewards[1] = [];
+    for (let i = 1; i < 10; i++) {
+        if (i === 5) continue;
+        rewards[1].push({startAngle: i * 36, angle: 10, bgColor: '#f038ff', text: '小獎', onStop: onSmall});
+    }
+    options.push(...rewards[1]);
+
+    rewards[2] = [];
+    rewards[2].push({startAngle: 0, angle: 10, bgColor: '#F6F740', text: '大獎', onStop: onBig});
+    rewards[2].push({startAngle: 180, angle: 10, bgColor: '#F6F740', text: '大獎', onStop: onBig});
+    options.push(...rewards[2]);
+
     const roulette = createRoulette(options);
     container.appendChild(roulette);
 
@@ -23,15 +51,52 @@ window.addEventListener('load', function () {
     container.appendChild(arrow);
 
     // Init
-    const standard = gaussian(0, 1, 1);
+    const standard = gaussian(0, 1, 1, 20);
     let spinning = false;
     let stopNowFunction = null;
-    let entranceFee = 10000;
     let bonusPoolValue = 0;
-    updateBonusText();
+    let forceSmall = false;
+    let forceBig = false;
+    updatePoolValueText();
+
+    // const a = {};
+    // for (let i = 0; i < 10000; i++) {
+    //     let random = standard();
+    //     if (a[random * 10 | 0])
+    //         a[random * 10 | 0]++;
+    //     else
+    //         a[random * 10 | 0] = 1;
+    // }
+    // console.log(a);
+
 
     window.addEventListener('keyup', function (ev) {
+        if (ev.key === 'ArrowUp') {
+            bonusPoolValue += 10000;
+            updatePoolValueText();
+        } else if (ev.key === 'ArrowDown') {
+            bonusPoolValue -= 10000;
+            if (bonusPoolValue < 0)
+                bonusPoolValue = 0;
+            updatePoolValueText();
+        }
+
+        if (ev.key === '1') {
+            forceSmall = !forceSmall;
+            updateState();
+        } else if (ev.key === '=') {
+            forceBig = !forceBig;
+            updateState();
+        }
+
         if (ev.key === ' ') {
+            // Return if result is showing
+            if (resultShow) {
+                resultScr.hide();
+                resultShow = false;
+                return;
+            }
+
             if (spinning) {
                 // Stop wheel now
                 if (stopNowFunction)
@@ -40,7 +105,7 @@ window.addEventListener('load', function () {
             }
             spinning = true;
             bonusPoolValue += entranceFee;
-            updateBonusText();
+            updatePoolValueText();
             console.log('start');
 
             // Get random angle
@@ -52,30 +117,99 @@ window.addEventListener('load', function () {
             random = Math.max(0.005, Math.min(random, 0.995));
 
             // Get random section
-            const option = options[Math.random() * options.length | 0];
+            let option;
+            if (bonusPoolValue < 30000)
+                option = rewards[0];
+            else {
+                const random = Math.random();
+                if (bonusPoolValue < 1000000)
+                    option = rewards[random < 0.2 ? 1 : 0];
+                else
+                    option = rewards[random < 0.0005 ? 2 : random < 0.3 ? 1 : 0];
+            }
+            // hack
+            if (forceSmall)
+                option = rewards[1];
+            if (forceBig)
+                option = rewards[2];
 
-            stopNowFunction = startSpin(roulette.firstElementChild, 270 - (option.startAngle + random * option.angle), function () {
+            option = option[Math.random() * option.length | 0];
+
+            stopNowFunction = startSpin(roulette.firstElementChild, 270 - (option.startAngle + random * (option.angle - 2) + 1), function () {
+                resultShow = true;
+                option.onStop();
                 spinning = false;
+                forceSmall = false;
+                forceBig = false;
+                updateState();
             });
         }
     });
 
-    function updateBonusText() {
+    function onNone() {
+        setTimeout(function () {
+            resultScr.show('🎉恭喜沒中哈哈🎉');
+        }, 500);
+    }
+
+    function onSmall() {
+        setTimeout(function () {
+            bonusPoolValue -= entranceFee * 3;
+            if (bonusPoolValue < 0)
+                bonusPoolValue = 0;
+            updatePoolValueText();
+            resultScr.show('🎉恭喜中小獎, 獲得' + format(entranceFee * 3) + '元🎉');
+        }, 500);
+    }
+
+    function onBig() {
+        setTimeout(function () {
+            resultScr.show('🎉恭喜中大獎獲得' + format(bonusPoolValue) + '元🎉');
+            bonusPoolValue = 0;
+            updatePoolValueText();
+        }, 500);
+    }
+
+    function updatePoolValueText() {
         if (bonusPoolValue === 0)
             bonusPoolText.innerHTML = '獎金池 : 0 元';
         else
             bonusPoolText.innerHTML = '獎金池 : <span>' + format(bonusPoolValue) + '</span> 元';
     }
+
+    function updateState() {
+        state.style.background = forceSmall ? 'blue' : forceBig ? 'red' : 'black';
+    }
 });
+
+function resultScreen() {
+    const screen = document.createElement('div');
+    screen.className = 'resultScreen'
+    screen.style.display = 'none';
+
+    const title = document.createElement('h1');
+    screen.appendChild(title);
+
+    screen.show = function (text) {
+        title.textContent = text;
+        screen.style.display = 'block';
+    };
+
+    screen.hide = function () {
+        screen.style.display = 'none';
+    };
+
+    return screen;
+}
 
 function startSpin(obj, angle, onStop) {
     if (!obj.angle)
         obj.angle = 0;
 
     let stopNow = false;
-    const startMaxTurnAngle = 360 * 5;
+    const startMaxTurnAngle = 360 * 3;
     const endTurnAngle = 360 * 3;
-    const speed = 360 * 3; // Deg per sec
+    const speed = 360 * 1.8; // Deg per sec
 
     // Start spin
     const startTurnAngle = startMaxTurnAngle - obj.angle;
@@ -154,7 +288,7 @@ function createRoulette(options) {
     // Option
     for (const option of options) {
         group.appendChild(createPie(x, y, r, option.startAngle, option.angle, option.bgColor));
-        group.appendChild(createSvgTextWithAngle(x, y, r * 0.9, option.startAngle + option.angle / 2, option.text, 15, '#FFFFFF'));
+        group.appendChild(createSvgTextWithAngle(x, y, r * 0.9, option.startAngle + option.angle / 2 + 1, option.text, 10, '#FFFFFF'));
     }
     // Split line
     for (const option of options) {
@@ -283,17 +417,17 @@ function cubicBezier(t, x1, y1, x2, y2) {
 }
 
 // returns a gaussian random function with the given mean and stdev.
-function gaussian(min, max, skew) {
+function gaussian(min, max, skew, sig) {
     return function () {
         let num;
         do {
             let u = 0, v = 0;
-            while (u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+            while (u === 0) u = Math.random();
             while (v === 0) v = Math.random();
-            num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-            num = num / 10.0 + 0.5; // Translate to 0 -> 1
-            if (num > 1 || num < 0)
-                console.log(num);
+            num = Math.sqrt(-sig * Math.log(u)) * Math.cos(sig * Math.PI * v);
+            num = num / 10.0 + 0.5;
+            // if (num > 1 || num < 0)
+            //     console.log(num);
         } while (num > 1 || num < 0);
 
         return Math.pow(num, skew) * (max - min) + min;
